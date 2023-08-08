@@ -4,14 +4,14 @@ import aiohttp
 
 from malala.sockets import UnixSocket, Transport
 from malala.tasks import TaskManager
-from .b3 import B3
-from .binance import Binance
+from client.b3 import B3
+from client.binance import Binance
 
 
 class ExchangeConnector:
     def __init__(self):
         self.exchanges = dict()
-        self.subscriptions = dict()
+        self.active_users = dict()
         self.channels = dict()
         self.tasks = dict()
         self.tasks[0] = set()
@@ -61,9 +61,9 @@ class ExchangeConnector:
     async def _subscribe(self, id, r) -> None:
         exchange = r.pop("exchange")
 
-        if id not in self.subscriptions.keys():
+        if id not in self.active_users:
             # start new service
-            self.subscriptions[id] = 0
+            self.active_users[id] = 0
             self.channels[id] = asyncio.Queue()
             self.tasks[id] = set()
 
@@ -72,19 +72,18 @@ class ExchangeConnector:
                 await self.exchanges[exchange].spawn_service(id, r),
             )
 
-        # update active users
-        self.subscriptions[id] += 1
+        self.active_users[id] += 1
 
     async def _unsubscribe(self, id) -> None:
         # update active users
-        self.subscriptions[id] -= 1
+        self.active_users[id] -= 1
 
         # terminate service
-        if self.subscriptions[id] <= 0:
+        if self.active_users[id] <= 0:
             await TaskManager.cancel_tasks(self.tasks[id])
             await self.channels[id].put(None)
 
-            del self.subscriptions[id]
+            del self.active_users[id]
             del self.channels[id]
             del self.tasks[id]
 

@@ -1,0 +1,12 @@
+spot:
+    http: https://api.binance.com/api/v3
+    ws: wss://stream.binance.com/ws
+
+fut:
+    http: https://fapi.binance.com/fapi/v1
+    ws: wss://fstream.binance.com/ws
+
+streams:
+    - wss://fstream.binance.com
+    - wss://fstream-auth.binance.com
+    -

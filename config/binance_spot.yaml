@@ -1,0 +1,8 @@
+exhange: binance
+
+symbols:
+    - btc/usdt
+
+base_url:
+    - https://api.binance.com/api/v3
+    - wss://stream.binance.com/ws

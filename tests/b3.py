@@ -1,21 +1,21 @@
 import asyncio
 import json
 import sys
+
 from malala.sockets import UnixSocket, Transport
 
 
-async def unix_client(r) -> None:
+async def unix_client(r):
     path = "/tmp/gateway_in_socket"
     reader, writer = await UnixSocket.open_conn(path)
-
     await Transport.send_json(r, writer)
 
     while True:
-        msg = await Transport.recv_bytes(reader)
+        msg = await Transport.recv_str(reader)
         print(msg)
 
 
-async def main(service) -> None:
+async def main(service):
     if service == "book":
         r = {
             "exchange": "b3",

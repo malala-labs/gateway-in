@@ -1,0 +1,8 @@
+exhange: binance
+
+symbols:
+    - btc/usdt
+
+base_url:
+    - https://fapi.binance.com/fapi/v1
+    - wss://fstream.binance.com/ws
