@@ -5,7 +5,9 @@ import aiohttp
 from malala.sockets import UnixSocket, Transport
 from malala.tasks import TaskManager
 from client.b3 import B3
-from client.binance import Binance
+from client.binance import BinanceSpot
+
+import pdb
 
 
 class ExchangeConnector:
@@ -14,23 +16,20 @@ class ExchangeConnector:
         self.active_users = dict()
         self.channels = dict()
         self.tasks = dict()
-        self.tasks[0] = set()
 
     async def _start_exchanges(self) -> None:
         self.session = aiohttp.ClientSession()
 
         self.exchanges["b3"] = B3(
-            self.channels,
             self.session,
+            self.channels,
         )
-        self.exchanges["binance"] = Binance(
-            self.channels,
+        self.exchanges["binance"] = BinanceSpot(
             self.session,
+            self.channels,
         )
         for exchange in self.exchanges:
-            self.tasks[0].update(
-                await self.exchanges[exchange].exchange_auth(),
-            )
+            await self.exchanges[exchange].exchange_auth()
 
     async def _start_server(self) -> None:
         path = "/tmp/gateway_in_socket"
@@ -69,7 +68,7 @@ class ExchangeConnector:
 
             # creates a strong reference to running services
             self.tasks[id].update(
-                await self.exchanges[exchange].spawn_service(id, r),
+                await self.exchanges[exchange].spawn_stream(id, r),
             )
 
         self.active_users[id] += 1
@@ -89,9 +88,7 @@ class ExchangeConnector:
 
     async def _monitor_event_loop(self) -> None:
         event_loop = asyncio.get_event_loop()
-        self.tasks[0].update(
-            await TaskManager.monitor_event_loop(event_loop, timeout=60),
-        )
+        await TaskManager.monitor_event_loop(event_loop, timeout=60)
 
     async def main(self) -> None:
         await self._monitor_event_loop()

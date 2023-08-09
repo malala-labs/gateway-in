@@ -7,5 +7,5 @@ class BaseExchange(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def spawn_service(self, id, payload) -> set:
+    async def spawn_stream(self, id, payload) -> set:
         raise NotImplementedError
