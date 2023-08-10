@@ -58,7 +58,7 @@ class ExchangeConnector:
             print(f"Closed conn -- fd: #{fd}")
 
     async def _subscribe(self, id, r) -> None:
-        exchange = r.pop("exchange")
+        exchange = r.get("exchange")
 
         if id not in self.active_users:
             # start new service

@@ -1,10 +1,13 @@
 import asyncio
 
 from malala.sockets import WebSocket
+from malala.constants import TEN_MIN
 from .base import BaseExchange
 from locksmith import fetch_credentials
 
 import pdb
+import json
+import time
 
 
 class BinanceSpot(BaseExchange):
@@ -13,62 +16,49 @@ class BinanceSpot(BaseExchange):
         self.channels = channels
         self._streams = dict()
 
+        self._base_uri = {
+            "ws": "wss://stream.binance.com:9443/ws",
+            "rest": "https://api.binance.com/api/v3",
+        }
+
     async def exchange_auth(self) -> None:
         r = {"exchange": "binance"}
         self._api_key = fetch_credentials(r).get("apiKey")
 
     async def _start_stream(self, id) -> None:
-        # symbol = r.pop("symbol").split(":")[0].lower()
-        # endpoint = r.pop("endpoint")
-        # payload = {
-        #     "id": id,
-        #     "method": "SUBSCRIBE",
-        #     "params": [f"{symbol}{endpoint}"],
-        # }
         headers = {"X-MBX-APIKEY": self._api_key}
+        uri = f"{self._base_uri['rest']}/userDataStream"
 
-        uri = "https://api.binance.com/api/v1/userDataStream"
         async with self.session.post(uri, headers=headers, data={}) as resp:
-            msg = await resp.json()
-            self._streams[id] = msg["listenKey"]
+            _json = await resp.json()
+            self._streams[id] = _json["listenKey"]
 
     async def _listen_stream(self, id, r) -> None:
-        symbol = r.pop("symbol").split(":")[0].lower()
-        endpoint = r.pop("endpoint")
+        symbol = r.get("symbol").split(":")[0].lower()
+        endpoint = r.get("endpoint")
         payload = {
             "method": "SUBSCRIBE",
             "params": [f"{symbol}{endpoint}"],
-            "id": 2,
+            "id": id,
         }
+        uri = f"{self._base_uri['ws']}/{self._streams[id]}"
 
-        # _endpoint = f"{symbol}{endpoint}"
-        # pdb.set_trace()
-        uri = f"wss://stream.binance.com:9443/ws/{self._streams[id]}"
-        print(uri)
-        # pdb.set_trace()
+        async with self.session.ws_connect(uri, heartbeat=TEN_MIN) as ws:
+            await ws.send_json(payload)
+            _json = await ws.receive_json()
+            assert _json.get("result") == None
 
-        # async with self.session.ws_connect(uri) as ws:
-        #     # resp = await ws.send_json(payload)
-        #     # print(resp)
-        #     # pdb.set_trace()
-
-        #     async for msg in ws:
-        #         print(msg)
-        #         pdb.set_trace()
-
-        await WebSocket.send_json(self.session, uri, payload)
-        async for msg in WebSocket.recv_str(self.session, uri):
-            pdb.set_trace()
-            print(msg)
-
-            await self.channels[id].put(msg)
+            async for msg in ws:
+                print(msg.data)
+                await self.channels[id].put(msg.data)
 
     async def spawn_stream(self, id, r) -> set:
         tasks = set()
+
         if id not in self._streams:
             await self._start_stream(id)
 
-        await self._listen_stream(id, r)
+        # await self._listen_stream(id, r)
 
         tasks.add(asyncio.create_task(self._listen_stream(id, r)))
         return tasks
