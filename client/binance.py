@@ -35,10 +35,13 @@ class BinanceSpot(BaseExchange):
 
     async def _listen_stream(self, id, r) -> None:
         symbol = r.get("symbol").split(":")[0].lower()
-        endpoint = r.get("endpoint")
         payload = {
             "method": "SUBSCRIBE",
-            "params": [f"{symbol}{endpoint}"],
+            "params": [
+                f"{symbol}@depth@100ms",
+                f"{symbol}@aggTrade",
+                f"{symbol}@bookTicker",
+            ],
             "id": id,
         }
         uri = f"{self._base_uri['ws']}/{self._streams[id]}"
@@ -49,7 +52,7 @@ class BinanceSpot(BaseExchange):
             assert _json.get("result") == None
 
             async for msg in ws:
-                print(msg.data)
+                # print(msg.data)
                 await self.channels[id].put(msg.data)
 
     async def spawn_stream(self, id, r) -> set:

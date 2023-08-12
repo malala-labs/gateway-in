@@ -39,16 +39,19 @@ class ExchangeConnector:
             await server.serve_forever()
 
     async def _handle_client(self, reader, writer) -> None:
-        fd = writer.get_extra_info("socket").fileno()
-        print(f"Serving conn -- fd: #{fd}")
+        msg = await reader.read()
+        id = abs(hash(msg))
+        r = json.loads(msg.decode())
 
-        async for msg in Transport.recv_json(reader):
-            id, r = abs(hash(json.dumps(msg))), msg
+        fd = writer.get_extra_info("socket").fileno()
+        print(f"Received msg -- id: #{id} -- r: #{r} -- fd: #{fd}")
 
         try:
             await self._subscribe(id, r)
             while True:
                 msg = await self.channels[id].get()
+                # pdb.set_trace()
+                # print("Sending msg to client")
                 await Transport.send_str(msg, writer)
 
         except Exception:
@@ -88,7 +91,7 @@ class ExchangeConnector:
 
     async def _monitor_event_loop(self) -> None:
         event_loop = asyncio.get_event_loop()
-        await TaskManager.monitor_event_loop(event_loop, timeout=60)
+        await TaskManager.monitor_event_loop(event_loop, timeout=10 * 60)
 
     async def main(self) -> None:
         await self._monitor_event_loop()
